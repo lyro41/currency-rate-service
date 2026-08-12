@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/lyro41/plata-go-assignment/internal/api"
 )
@@ -17,7 +18,7 @@ SELECT id, pair, status, rate, update_time FROM currency_rates
 WHERE id = $1
 `
 
-func (q *Queries) GetCurrencyRateByID(ctx context.Context, id pgtype.UUID) (CurrencyRate, error) {
+func (q *Queries) GetCurrencyRateByID(ctx context.Context, id uuid.UUID) (CurrencyRate, error) {
 	row := q.db.QueryRow(ctx, getCurrencyRateByID, id)
 	var i CurrencyRate
 	err := row.Scan(
@@ -62,14 +63,14 @@ RETURNING id, pair
 `
 
 type RequestCurrencyRateParams struct {
-	ID     pgtype.UUID    `json:"id"`
+	ID     uuid.UUID      `json:"id"`
 	Pair   string         `json:"pair"`
 	Status api.RateStatus `json:"status"`
 }
 
 type RequestCurrencyRateRow struct {
-	ID   pgtype.UUID `json:"id"`
-	Pair string      `json:"pair"`
+	ID   uuid.UUID `json:"id"`
+	Pair string    `json:"pair"`
 }
 
 func (q *Queries) RequestCurrencyRate(ctx context.Context, arg RequestCurrencyRateParams) (RequestCurrencyRateRow, error) {
@@ -86,7 +87,7 @@ WHERE id = $1
 `
 
 type UpdateCurrencyRateParams struct {
-	ID         pgtype.UUID      `json:"id"`
+	ID         uuid.UUID        `json:"id"`
 	Status     api.RateStatus   `json:"status"`
 	Rate       pgtype.Numeric   `json:"rate"`
 	UpdateTime pgtype.Timestamp `json:"update_time"`

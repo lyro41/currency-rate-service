@@ -10,5 +10,7 @@ sql:
         out: "internal/db"
         emit_json_tags: true
         overrides:
+          - column: "currency_rates.id"
+            go_type: "github.com/google/uuid.UUID"
           - column: "currency_rates.status"
             go_type: "github.com/lyro41/plata-go-assignment/internal/api.RateStatus"

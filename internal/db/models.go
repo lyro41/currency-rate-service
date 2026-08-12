@@ -5,12 +5,13 @@
 package db
 
 import (
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/lyro41/plata-go-assignment/internal/api"
 )
 
 type CurrencyRate struct {
-	ID         pgtype.UUID      `json:"id"`
+	ID         uuid.UUID        `json:"id"`
 	Pair       string           `json:"pair"`
 	Status     api.RateStatus   `json:"status"`
 	Rate       pgtype.Numeric   `json:"rate"`
