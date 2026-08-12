@@ -5,55 +5,9 @@
 package db
 
 import (
-	"database/sql/driver"
-	"fmt"
-
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/lyro41/plata-go-assignment/internal/api"
 )
-
-type RateStatus string
-
-const (
-	RateStatusPending RateStatus = "pending"
-	RateStatusFetched RateStatus = "fetched"
-	RateStatusFailed  RateStatus = "failed"
-)
-
-func (e *RateStatus) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = RateStatus(s)
-	case string:
-		*e = RateStatus(s)
-	default:
-		return fmt.Errorf("unsupported scan type for RateStatus: %T", src)
-	}
-	return nil
-}
-
-type NullRateStatus struct {
-	RateStatus RateStatus `json:"rate_status"`
-	Valid      bool       `json:"valid"` // Valid is true if RateStatus is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullRateStatus) Scan(value interface{}) error {
-	if value == nil {
-		ns.RateStatus, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.RateStatus.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullRateStatus) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.RateStatus), nil
-}
 
 type CurrencyRate struct {
 	ID         pgtype.UUID      `json:"id"`
