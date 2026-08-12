@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/lyro41/plata-go-assignment/internal/api"
 	"github.com/shopspring/decimal"
@@ -19,21 +19,27 @@ type CurrencyRate struct {
 }
 
 func GetCurrencyRate(client *http.Client, pair string) (api.RateStatus, decimal.Decimal) {
+	logger := slog.With(slog.String("pair", pair))
+
 	resp, err := client.Get(fmt.Sprintf("https://api.frankfurter.dev/v2/rate/%s", pair))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "get currency rate: %v\n", err)
+		logger.Error("get currency rate", slog.Any("error", err))
 		return api.StatusFailed, decimal.Decimal{}
 	}
 	defer resp.Body.Close()
+	logger = logger.With(slog.Any("resp", resp))
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "parse currency rate body: %v\n", err)
+		logger.Error("parse currency rate body", slog.Any("error", err))
 		return api.StatusFailed, decimal.Decimal{}
 	}
+	logger = logger.With(slog.String("body", string(body)))
+
 	rate := &CurrencyRate{}
 	err = json.Unmarshal(body, rate)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "unmarshal currency rate: %v\n", err)
+		logger.Error("unmarshal currency rate", slog.Any("error", err))
 		return api.StatusFailed, decimal.Decimal{}
 	}
 	return api.StatusFetched, rate.Rate
