@@ -4,6 +4,8 @@ import "github.com/google/uuid"
 
 type RateStatus string
 
+func (r RateStatus) String() string { return string(r) }
+
 const (
 	StatusPending RateStatus = "pending"
 	StatusFetched RateStatus = "fetched"
