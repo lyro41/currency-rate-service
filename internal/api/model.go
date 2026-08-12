@@ -1,5 +1,7 @@
 package api
 
+import "github.com/google/uuid"
+
 type RateStatus string
 
 const (
@@ -7,3 +9,8 @@ const (
 	StatusFetched RateStatus = "fetched"
 	StatusFailed  RateStatus = "failed"
 )
+
+type Request struct {
+	UUID uuid.UUID
+	Pair string
+}
