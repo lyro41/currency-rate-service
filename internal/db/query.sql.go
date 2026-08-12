@@ -7,9 +7,8 @@ package db
 
 import (
 	"context"
-	"database/sql"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/lyro41/plata-go-assignment/internal/api"
 )
 
@@ -18,8 +17,8 @@ SELECT id, pair, status, rate, update_time FROM currency_rates
 WHERE id = $1
 `
 
-func (q *Queries) GetCurrencyRateByID(ctx context.Context, id uuid.UUID) (CurrencyRate, error) {
-	row := q.db.QueryRowContext(ctx, getCurrencyRateByID, id)
+func (q *Queries) GetCurrencyRateByID(ctx context.Context, id pgtype.UUID) (CurrencyRate, error) {
+	row := q.db.QueryRow(ctx, getCurrencyRateByID, id)
 	var i CurrencyRate
 	err := row.Scan(
 		&i.ID,
@@ -44,7 +43,7 @@ type GetLatestCurrencyRateParams struct {
 }
 
 func (q *Queries) GetLatestCurrencyRate(ctx context.Context, arg GetLatestCurrencyRateParams) (CurrencyRate, error) {
-	row := q.db.QueryRowContext(ctx, getLatestCurrencyRate, arg.Status, arg.Pair)
+	row := q.db.QueryRow(ctx, getLatestCurrencyRate, arg.Status, arg.Pair)
 	var i CurrencyRate
 	err := row.Scan(
 		&i.ID,
@@ -63,18 +62,18 @@ RETURNING id, pair
 `
 
 type RequestCurrencyRateParams struct {
-	ID     uuid.UUID      `json:"id"`
+	ID     pgtype.UUID    `json:"id"`
 	Pair   string         `json:"pair"`
 	Status api.RateStatus `json:"status"`
 }
 
 type RequestCurrencyRateRow struct {
-	ID   uuid.UUID `json:"id"`
-	Pair string    `json:"pair"`
+	ID   pgtype.UUID `json:"id"`
+	Pair string      `json:"pair"`
 }
 
 func (q *Queries) RequestCurrencyRate(ctx context.Context, arg RequestCurrencyRateParams) (RequestCurrencyRateRow, error) {
-	row := q.db.QueryRowContext(ctx, requestCurrencyRate, arg.ID, arg.Pair, arg.Status)
+	row := q.db.QueryRow(ctx, requestCurrencyRate, arg.ID, arg.Pair, arg.Status)
 	var i RequestCurrencyRateRow
 	err := row.Scan(&i.ID, &i.Pair)
 	return i, err
@@ -87,14 +86,14 @@ WHERE id = $1
 `
 
 type UpdateCurrencyRateParams struct {
-	ID         uuid.UUID      `json:"id"`
-	Status     api.RateStatus `json:"status"`
-	Rate       sql.NullString `json:"rate"`
-	UpdateTime sql.NullTime   `json:"update_time"`
+	ID         pgtype.UUID      `json:"id"`
+	Status     api.RateStatus   `json:"status"`
+	Rate       pgtype.Numeric   `json:"rate"`
+	UpdateTime pgtype.Timestamp `json:"update_time"`
 }
 
 func (q *Queries) UpdateCurrencyRate(ctx context.Context, arg UpdateCurrencyRateParams) error {
-	_, err := q.db.ExecContext(ctx, updateCurrencyRate,
+	_, err := q.db.Exec(ctx, updateCurrencyRate,
 		arg.ID,
 		arg.Status,
 		arg.Rate,

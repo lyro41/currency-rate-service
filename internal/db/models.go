@@ -5,11 +5,10 @@
 package db
 
 import (
-	"database/sql"
 	"database/sql/driver"
 	"fmt"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/lyro41/plata-go-assignment/internal/api"
 )
 
@@ -57,9 +56,9 @@ func (ns NullRateStatus) Value() (driver.Value, error) {
 }
 
 type CurrencyRate struct {
-	ID         uuid.UUID      `json:"id"`
-	Pair       string         `json:"pair"`
-	Status     api.RateStatus `json:"status"`
-	Rate       sql.NullString `json:"rate"`
-	UpdateTime sql.NullTime   `json:"update_time"`
+	ID         pgtype.UUID      `json:"id"`
+	Pair       string           `json:"pair"`
+	Status     api.RateStatus   `json:"status"`
+	Rate       pgtype.Numeric   `json:"rate"`
+	UpdateTime pgtype.Timestamp `json:"update_time"`
 }
