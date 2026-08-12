@@ -1,4 +1,4 @@
-module plata-go-assignment
+module github.com/lyro41/plata-go-assignment
 
 go 1.26
 
