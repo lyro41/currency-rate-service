@@ -7,15 +7,13 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/lyro41/plata-go-assignment/internal/api"
-	"github.com/lyro41/plata-go-assignment/internal/provider"
 
+	"github.com/lyro41/plata-go-assignment/internal/api"
 	"github.com/lyro41/plata-go-assignment/internal/db"
+	"github.com/lyro41/plata-go-assignment/internal/provider"
 )
 
-var ctxWaitTime = time.Second * 5
-
-func worker(ctx context.Context, client *http.Client, q *db.Queries, requests chan api.Request) {
+func Do(ctx context.Context, client *http.Client, q *db.Queries, requests chan api.Request, timeout time.Duration) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -26,7 +24,7 @@ func worker(ctx context.Context, client *http.Client, q *db.Queries, requests ch
 			logger.Info("fetching currency rate")
 			status, rate := provider.GetCurrencyRate(client, req.Pair)
 
-			ctx0, cancel := context.WithTimeout(ctx, ctxWaitTime)
+			ctx0, cancel := context.WithTimeout(ctx, timeout)
 			updateTime := time.Now()
 			err := q.UpdateCurrencyRate(ctx0, db.UpdateCurrencyRateParams{
 				ID:         req.UUID,
