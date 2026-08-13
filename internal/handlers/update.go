@@ -2,10 +2,8 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -29,8 +27,6 @@ type UpdateHandler struct {
 	DB      *db.Queries
 	Queue   chan api.Request
 	Timeout time.Duration
-
-	Pair string `json:"pair"`
 }
 
 func NewUpdateHandler(db *db.Queries, queue chan api.Request, timeout time.Duration) *UpdateHandler {
@@ -41,29 +37,12 @@ func NewUpdateHandler(db *db.Queries, queue chan api.Request, timeout time.Durat
 	}
 }
 
-var pairRe = regexp.MustCompile(`^([a-zA-Z]+)/([a-zA-Z]+)$`)
-
 func (u *UpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	pair := chi.URLParam(r, "*")
 	resp := api.ErrorResponse{Pair: pair}
 	logger := slog.With(slog.String("pair", pair))
-	if !pairRe.MatchString(pair) {
-		resp.Error = "'pair' parameter must be in 'ABC/XYZ' format"
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, resp)
-		logger.Warn("invalid pair")
+	if !handlePair(w, r, &resp, logger) {
 		return
-	}
-
-	currencies := pairRe.FindStringSubmatch(pair)
-	for _, currency := range currencies[1:] {
-		if !validCurrencies[currency] {
-			resp.Error = fmt.Sprintf("currency %s is not supported", currency)
-			render.Status(r, http.StatusUnprocessableEntity)
-			render.JSON(w, r, resp)
-			logger.Warn("unsupported currency in pair")
-			return
-		}
 	}
 
 	id := uuid.New()

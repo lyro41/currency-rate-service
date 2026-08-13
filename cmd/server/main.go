@@ -24,7 +24,7 @@ func main() {
 	slog.Info("initializing database connection")
 	conn, err := pgx.Connect(ctx, cfg.Storage.String())
 	if err != nil {
-		log.Fatalf("connect to database: %s", err.Error())
+		log.Fatalf("connect to database: %s", err)
 	}
 	defer conn.Close(ctx)
 	database := db.New(conn)
@@ -32,7 +32,7 @@ func main() {
 	slog.Info("initializing database schema")
 	_, err = conn.Exec(ctx, db.InitSchema)
 	if err != nil {
-		log.Fatalf("initialize database schema: %s", err.Error())
+		log.Fatalf("initialize database schema: %s", err)
 	}
 
 	slog.Info("initializing worker")
@@ -50,6 +50,8 @@ func main() {
 	router.Use(middleware.Timeout(cfg.Provider.Timeout))
 
 	router.Post("/update/*", handlers.NewUpdateHandler(database, queue, cfg.Storage.Timeout).ServeHTTP)
+	router.Get("/currency-rate", handlers.NewCurrencyRateHandler(database, cfg.Storage.Timeout).ServeHTTP)
+	router.Get("/currency-rate/*", handlers.NewCurrencyRateHandler(database, cfg.Storage.Timeout).ServeHTTP)
 
 	server := &http.Server{
 		Addr:         cfg.Address,

@@ -1,6 +1,10 @@
 package api
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type RateStatus string
 
@@ -21,4 +25,10 @@ type ErrorResponse struct {
 	Error string `json:"error,omitempty"`
 	Pair  string `json:"pair"`
 	ID    string `json:"id,omitempty"`
+}
+
+type CurrencyRateResponse struct {
+	ErrorResponse
+	Rate string    `json:"rate"`
+	Time time.Time `json:"time"`
 }
