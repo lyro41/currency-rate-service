@@ -13,6 +13,30 @@ import (
 	"github.com/lyro41/plata-go-assignment/internal/api"
 )
 
+const createUpdateRequest = `-- name: CreateUpdateRequest :one
+INSERT INTO currency_rates (id, pair, status)
+VALUES ($1, $2, $3)
+RETURNING id, pair
+`
+
+type CreateUpdateRequestParams struct {
+	ID     uuid.UUID      `json:"id"`
+	Pair   string         `json:"pair"`
+	Status api.RateStatus `json:"status"`
+}
+
+type CreateUpdateRequestRow struct {
+	ID   uuid.UUID `json:"id"`
+	Pair string    `json:"pair"`
+}
+
+func (q *Queries) CreateUpdateRequest(ctx context.Context, arg CreateUpdateRequestParams) (CreateUpdateRequestRow, error) {
+	row := q.db.QueryRow(ctx, createUpdateRequest, arg.ID, arg.Pair, arg.Status)
+	var i CreateUpdateRequestRow
+	err := row.Scan(&i.ID, &i.Pair)
+	return i, err
+}
+
 const getCurrencyRateByID = `-- name: GetCurrencyRateByID :one
 SELECT id, pair, status, rate, update_time FROM currency_rates
 WHERE id = $1
@@ -53,30 +77,6 @@ func (q *Queries) GetLatestCurrencyRate(ctx context.Context, arg GetLatestCurren
 		&i.Rate,
 		&i.UpdateTime,
 	)
-	return i, err
-}
-
-const requestCurrencyRate = `-- name: RequestCurrencyRate :one
-INSERT INTO currency_rates (id, pair, status)
-VALUES ($1, $2, $3)
-RETURNING id, pair
-`
-
-type RequestCurrencyRateParams struct {
-	ID     uuid.UUID      `json:"id"`
-	Pair   string         `json:"pair"`
-	Status api.RateStatus `json:"status"`
-}
-
-type RequestCurrencyRateRow struct {
-	ID   uuid.UUID `json:"id"`
-	Pair string    `json:"pair"`
-}
-
-func (q *Queries) RequestCurrencyRate(ctx context.Context, arg RequestCurrencyRateParams) (RequestCurrencyRateRow, error) {
-	row := q.db.QueryRow(ctx, requestCurrencyRate, arg.ID, arg.Pair, arg.Status)
-	var i RequestCurrencyRateRow
-	err := row.Scan(&i.ID, &i.Pair)
 	return i, err
 }
 

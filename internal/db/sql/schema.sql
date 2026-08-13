@@ -6,5 +6,5 @@ CREATE TABLE IF NOT EXISTS currency_rates (
   update_time TIMESTAMP NULL
 );
 
-CREATE INDEX idx_currency_rates_pair_update_time
+CREATE INDEX IF NOT EXISTS idx_currency_rates_pair_update_time
 ON currency_rates (pair, update_time DESC);

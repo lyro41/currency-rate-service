@@ -8,7 +8,7 @@ LIMIT 1;
 SELECT * FROM currency_rates
 WHERE id = $1;
 
--- name: RequestCurrencyRate :one
+-- name: CreateUpdateRequest :one
 INSERT INTO currency_rates (id, pair, status)
 VALUES ($1, $2, $3)
 RETURNING id, pair;
