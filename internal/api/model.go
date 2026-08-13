@@ -29,6 +29,7 @@ type ErrorResponse struct {
 
 type CurrencyRateResponse struct {
 	ErrorResponse
-	Rate string    `json:"rate"`
-	Time time.Time `json:"time"`
+	Rate   string     `json:"rate,omitempty"`
+	Time   time.Time  `json:"time"`
+	Status RateStatus `json:"status,omitempty"`
 }

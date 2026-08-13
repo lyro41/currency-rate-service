@@ -37,13 +37,20 @@ func (q *Queries) CreateUpdateRequest(ctx context.Context, arg CreateUpdateReque
 	return i, err
 }
 
-const getCurrencyRateByID = `-- name: GetCurrencyRateByID :one
+const getCurrencyRate = `-- name: GetCurrencyRate :one
 SELECT id, pair, status, rate, update_time FROM currency_rates
-WHERE id = $1
+WHERE status = $1 AND pair = $2
+ORDER BY update_time DESC
+LIMIT 1
 `
 
-func (q *Queries) GetCurrencyRateByID(ctx context.Context, id uuid.UUID) (CurrencyRate, error) {
-	row := q.db.QueryRow(ctx, getCurrencyRateByID, id)
+type GetCurrencyRateParams struct {
+	Status api.RateStatus `json:"status"`
+	Pair   string         `json:"pair"`
+}
+
+func (q *Queries) GetCurrencyRate(ctx context.Context, arg GetCurrencyRateParams) (CurrencyRate, error) {
+	row := q.db.QueryRow(ctx, getCurrencyRate, arg.Status, arg.Pair)
 	var i CurrencyRate
 	err := row.Scan(
 		&i.ID,
@@ -55,20 +62,13 @@ func (q *Queries) GetCurrencyRateByID(ctx context.Context, id uuid.UUID) (Curren
 	return i, err
 }
 
-const getLatestCurrencyRate = `-- name: GetLatestCurrencyRate :one
+const getCurrencyRateByID = `-- name: GetCurrencyRateByID :one
 SELECT id, pair, status, rate, update_time FROM currency_rates
-WHERE status = $1 AND pair = $2
-ORDER BY update_time DESC
-LIMIT 1
+WHERE id = $1
 `
 
-type GetLatestCurrencyRateParams struct {
-	Status api.RateStatus `json:"status"`
-	Pair   string         `json:"pair"`
-}
-
-func (q *Queries) GetLatestCurrencyRate(ctx context.Context, arg GetLatestCurrencyRateParams) (CurrencyRate, error) {
-	row := q.db.QueryRow(ctx, getLatestCurrencyRate, arg.Status, arg.Pair)
+func (q *Queries) GetCurrencyRateByID(ctx context.Context, id uuid.UUID) (CurrencyRate, error) {
+	row := q.db.QueryRow(ctx, getCurrencyRateByID, id)
 	var i CurrencyRate
 	err := row.Scan(
 		&i.ID,

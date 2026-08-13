@@ -46,10 +46,12 @@ type Worker struct {
 	Timeout time.Duration `yaml:"timeout" env-default:"5s"`
 }
 
+var cfgPathEnv = "CONFIG_PATH"
+
 func MustLoad() *Config {
-	configPath := os.Getenv("CONFIG_PATH")
+	configPath := os.Getenv(cfgPathEnv)
 	if configPath == "" {
-		log.Fatal("CONFIG_PATH environment variable not set")
+		log.Fatalf("%s environment variable not set", cfgPathEnv)
 	}
 
 	if _, err := os.Stat(configPath); err != nil {

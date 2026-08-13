@@ -1,4 +1,4 @@
--- name: GetLatestCurrencyRate :one
+-- name: GetCurrencyRate :one
 SELECT * FROM currency_rates
 WHERE status = $1 AND pair = $2
 ORDER BY update_time DESC

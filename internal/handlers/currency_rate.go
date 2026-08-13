@@ -34,19 +34,19 @@ func (c *CurrencyRateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	)
 	id := r.URL.Query().Get("id")
 	pair := chi.URLParam(r, "*")
-	resp := api.ErrorResponse{ID: id, Pair: pair}
+	resp := api.CurrencyRateResponse{ErrorResponse: api.ErrorResponse{ID: id, Pair: pair}}
 	logger := slog.With(slog.String("id", id), slog.String("pair", pair))
 	if id == "" {
-		if !handlePair(w, r, &resp, logger) {
+		if !handlePair(w, r, &resp.ErrorResponse, logger) {
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), c.Timeout)
 		defer cancel()
-		row, err = c.DB.GetLatestCurrencyRate(ctx, db.GetLatestCurrencyRateParams{Status: api.StatusFetched, Pair: pair})
+		row, err = c.DB.GetCurrencyRate(ctx, db.GetCurrencyRateParams{Status: api.StatusFetched, Pair: pair})
 		if err != nil {
 			resp.Error = fmt.Sprintf("failed to get latest currency rate from database: %s", err)
 			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, resp)
+			render.JSON(w, r, resp.ErrorResponse)
 			logger.Error(resp.Error)
 			return
 		}
@@ -55,7 +55,7 @@ func (c *CurrencyRateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			resp.Error = fmt.Sprintf("invalid id: %s", err)
 			render.Status(r, http.StatusBadRequest)
-			render.JSON(w, r, resp)
+			render.JSON(w, r, resp.ErrorResponse)
 			logger.Warn(resp.Error)
 			return
 		}
@@ -65,14 +65,17 @@ func (c *CurrencyRateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			resp.Error = fmt.Sprintf("failed to get currency rate by id from database: %s", err)
 			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, resp)
+			render.JSON(w, r, resp.ErrorResponse)
 			logger.Error(resp.Error)
 			return
 		}
+		resp.Pair = row.Pair
 	}
 	render.Status(r, http.StatusOK)
-	rate := decimal.NewFromBigInt(row.Rate.Int, row.Rate.Exp)
-	render.JSON(w, r, &api.CurrencyRateResponse{ErrorResponse: resp, Rate: rate.String(), Time: row.UpdateTime.Time})
+	resp.Rate = decimal.NewFromBigInt(row.Rate.Int, row.Rate.Exp).String()
+	resp.Time = row.UpdateTime.Time
+	resp.Status = row.Status
+	render.JSON(w, r, resp)
 	logger.Info("successfully queried currency rate", slog.Any("row", row))
 	return
 }
