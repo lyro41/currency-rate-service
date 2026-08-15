@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -33,7 +34,7 @@ func (c *CurrencyRateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		err error
 	)
 	id := r.URL.Query().Get("id")
-	pair := chi.URLParam(r, "*")
+	pair := strings.ToUpper(chi.URLParam(r, "*"))
 	resp := api.CurrencyRateResponse{ErrorResponse: api.ErrorResponse{ID: id, Pair: pair}}
 	logger := slog.With(slog.String("id", id), slog.String("pair", pair))
 	if id == "" {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -39,7 +40,7 @@ func NewUpdateHandler(db *db.Queries, queue chan api.Request, timeout time.Durat
 }
 
 func (u *UpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	pair := chi.URLParam(r, "*")
+	pair := strings.ToUpper(chi.URLParam(r, "*"))
 	resp := api.ErrorResponse{Pair: pair}
 	logger := slog.With(slog.String("pair", pair))
 	if !handlePair(w, r, &resp, logger) {
