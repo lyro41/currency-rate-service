@@ -14,7 +14,6 @@ type Config struct {
 	Storage    `yaml:"storage"`
 	Provider   `yaml:"provider"`
 	HTTPServer `yaml:"http_server"`
-	Worker     `yaml:"worker"`
 }
 
 type Storage struct {
@@ -42,16 +41,16 @@ type HTTPServer struct {
 	IdleTimeout  time.Duration `yaml:"idle_timeout" env-default:"60s"`
 }
 
-type Worker struct {
-	Timeout time.Duration `yaml:"timeout" env-default:"5s"`
-}
-
 var cfgPathEnv = "CONFIG_PATH"
 
 func MustLoad() *Config {
 	configPath := os.Getenv(cfgPathEnv)
 	if configPath == "" {
-		log.Fatalf("%s environment variable not set", cfgPathEnv)
+		var cfg Config
+		if err := cleanenv.ReadEnv(&cfg); err != nil {
+			log.Fatalf("error reading environment config: %v", err)
+		}
+		return &cfg
 	}
 
 	if _, err := os.Stat(configPath); err != nil {
