@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/lyro41/plata-go-assignment/internal/api"
 	"github.com/lyro41/plata-go-assignment/internal/db"
@@ -46,11 +47,26 @@ func (u *UpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := uuid.New()
-	resp.ID = id.String()
-	logger = logger.With("id", id)
+	idempotencyKey := r.Header.Get("Idempotency-Key")
 	ctx, cancel := context.WithTimeout(r.Context(), u.Timeout)
 	defer cancel()
-	_, err := u.DB.CreateUpdateRequest(ctx, db.CreateUpdateRequestParams{ID: id, Pair: pair, Status: api.StatusPending})
+	var err error
+	created := true
+	if idempotencyKey == "" {
+		_, err = u.DB.CreateUpdateRequest(ctx, db.CreateUpdateRequestParams{ID: id, Pair: pair, Status: api.StatusPending})
+	} else {
+		var row db.CreateUpdateRequestRow
+		row, err = u.DB.CreateIdempotentUpdateRequest(ctx, db.CreateIdempotentUpdateRequestParams{
+			ID: id, Pair: pair, Status: api.StatusPending, IdempotencyKey: idempotencyKey,
+		})
+		if err == pgx.ErrNoRows {
+			row, err = u.DB.GetUpdateRequestByIdempotencyKey(ctx, pair, idempotencyKey)
+			created = false
+		}
+		if err == nil {
+			id = row.ID
+		}
+	}
 	if err != nil {
 		resp.Error = "failed to save request to database"
 		render.Status(r, http.StatusInternalServerError)
@@ -58,8 +74,12 @@ func (u *UpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		logger.Error("failed to create currency rate request", slog.Any("error", err))
 		return
 	}
+	resp.ID = id.String()
+	logger = logger.With("id", id)
 
-	u.Queue <- api.Request{UUID: id, Pair: pair}
+	if created {
+		u.Queue <- api.Request{UUID: id, Pair: pair}
+	}
 	render.Status(r, http.StatusOK)
 	render.JSON(w, r, resp)
 	logger.Info("successfully created currency rate request")

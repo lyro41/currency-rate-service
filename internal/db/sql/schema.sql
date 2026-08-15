@@ -3,8 +3,16 @@ CREATE TABLE IF NOT EXISTS currency_rates (
   pair VARCHAR(10) NOT NULL,
   status VARCHAR(10) NOT NULL,
   rate DECIMAL(20, 8) NULL,
-  update_time TIMESTAMP NULL
+  update_time TIMESTAMP NULL,
+  idempotency_key VARCHAR(255) NULL
 );
+
+ALTER TABLE currency_rates
+ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(255) NULL;
 
 CREATE INDEX IF NOT EXISTS idx_currency_rates_pair_update_time
 ON currency_rates (pair, update_time DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_currency_rates_pair_idempotency_key
+ON currency_rates (pair, idempotency_key)
+WHERE idempotency_key IS NOT NULL;
