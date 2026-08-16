@@ -16,8 +16,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/lyro41/plata-go-assignment/internal/api"
-	"github.com/lyro41/plata-go-assignment/internal/db"
+	"github.com/lyro41/currency-rate-service/internal/api"
+	"github.com/lyro41/currency-rate-service/internal/db"
 )
 
 func TestHandlePair(t *testing.T) {

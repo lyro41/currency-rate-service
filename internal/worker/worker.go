@@ -8,9 +8,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/lyro41/plata-go-assignment/internal/api"
-	"github.com/lyro41/plata-go-assignment/internal/db"
-	"github.com/lyro41/plata-go-assignment/internal/provider"
+	"github.com/lyro41/currency-rate-service/internal/api"
+	"github.com/lyro41/currency-rate-service/internal/db"
+	"github.com/lyro41/currency-rate-service/internal/provider"
 )
 
 func Do(ctx context.Context, client *http.Client, q *db.Queries, requests chan api.Request, timeout time.Duration) {

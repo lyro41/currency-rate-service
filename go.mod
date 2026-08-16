@@ -1,4 +1,4 @@
-module github.com/lyro41/plata-go-assignment
+module github.com/lyro41/currency-rate-service
 
 go 1.26
 

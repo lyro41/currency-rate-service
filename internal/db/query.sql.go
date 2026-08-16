@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/lyro41/plata-go-assignment/internal/api"
+	"github.com/lyro41/currency-rate-service/internal/api"
 )
 
 const createIdempotentUpdateRequest = `-- name: CreateIdempotentUpdateRequest :one

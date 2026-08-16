@@ -7,7 +7,7 @@ import (
 	"regexp"
 
 	"github.com/go-chi/render"
-	"github.com/lyro41/plata-go-assignment/internal/api"
+	"github.com/lyro41/currency-rate-service/internal/api"
 )
 
 var pairRe = regexp.MustCompile(`^([a-zA-Z]+)/([a-zA-Z]+)$`)

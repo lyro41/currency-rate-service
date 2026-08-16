@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/lyro41/plata-go-assignment/internal/api"
+	"github.com/lyro41/currency-rate-service/internal/api"
 	"github.com/shopspring/decimal"
 )
 
