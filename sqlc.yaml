@@ -13,4 +13,4 @@ sql:
           - column: "currency_rates.id"
             go_type: "github.com/google/uuid.UUID"
           - column: "currency_rates.status"
-            go_type: "github.com/lyro41/plata-go-assignment/internal/api.RateStatus"
+            go_type: "github.com/lyro41/currency-rate-service/internal/api.RateStatus"
