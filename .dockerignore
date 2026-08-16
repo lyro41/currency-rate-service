@@ -1,0 +1,7 @@
+.git
+.idea
+.env
+build
+config
+README.md
+**/*_test.go

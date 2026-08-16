@@ -1,0 +1,18 @@
+env: production
+
+storage:
+  host: postgres
+  port: 5432
+  user: postgres
+  password: postgres
+  database: postgres
+  timeout: 5s
+
+provider:
+  timeout: 5s
+
+http_server:
+  address: ":8080"
+  read_timeout: 5s
+  write_timeout: 10s
+  idle_timeout: 60s

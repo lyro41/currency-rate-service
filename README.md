@@ -61,6 +61,22 @@ go run .\cmd\server
 
 При старте сервис подключается к PostgreSQL и выполняет `internal/db/sql/schema.sql` автоматически. Отдельный запуск миграций не требуется.
 
+### Запуск через Docker Compose
+
+Для запуска приложения и PostgreSQL выполните:
+
+```bash
+docker compose up --build
+```
+
+После запуска API доступен по адресу `http://localhost:8080`. Остановить контейнеры можно командой:
+
+```bash
+docker compose down
+```
+
+Данные PostgreSQL сохраняются в Docker volume `postgres-data`.
+
 Если `CONFIG_PATH` не задан, конфигурация читается через `cleanenv` из переменных окружения и получает значения по умолчанию из тегов `env-default`. Поэтому сервис можно запустить без YAML-файла:
 
 ```bash
