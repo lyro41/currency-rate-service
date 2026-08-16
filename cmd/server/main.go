@@ -2,9 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -23,7 +28,8 @@ func main() {
 		log.Fatalf("invalid config: %s", err)
 	}
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	slog.Info("initializing database connection")
 	pool, err := pgxpool.New(ctx, cfg.Storage.String())
@@ -42,7 +48,11 @@ func main() {
 	slog.Info("initializing worker")
 	client := &http.Client{Timeout: cfg.Provider.Timeout}
 	queue := make(chan api.Request, cfg.Worker.BufferSize)
-	go worker.Do(ctx, client, database, queue, cfg.Storage.Timeout)
+	workerDone := make(chan struct{})
+	go func() {
+		defer close(workerDone)
+		worker.Do(ctx, client, database, queue, cfg.Storage.Timeout)
+	}()
 
 	slog.Info("initializing server")
 
@@ -64,7 +74,28 @@ func main() {
 		ReadTimeout:  cfg.ReadTimeout,
 		WriteTimeout: cfg.WriteTimeout,
 	}
-	if err = server.ListenAndServe(); err != nil {
-		log.Fatalf("listen and serve: %s", err.Error())
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- server.ListenAndServe()
+	}()
+
+	select {
+	case err = <-serverErr:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("listen and serve: %s", err.Error())
+		}
+	case <-ctx.Done():
+		slog.Info("shutting down server")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if err = server.Shutdown(shutdownCtx); err != nil {
+			log.Printf("server shutdown: %s", err)
+		}
+		cancel()
+
+		select {
+		case <-workerDone:
+		case <-time.After(10 * time.Second):
+			log.Print("worker shutdown timed out")
+		}
 	}
 }
