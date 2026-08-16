@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/lyro41/currency-rate-service/internal/api"
 	"github.com/lyro41/currency-rate-service/internal/config"
@@ -26,15 +26,15 @@ func main() {
 	ctx := context.Background()
 
 	slog.Info("initializing database connection")
-	conn, err := pgx.Connect(ctx, cfg.Storage.String())
+	pool, err := pgxpool.New(ctx, cfg.Storage.String())
 	if err != nil {
 		log.Fatalf("connect to database: %s", err)
 	}
-	defer conn.Close(ctx)
-	database := db.New(conn)
+	defer pool.Close()
+	database := db.New(pool)
 
 	slog.Info("initializing database schema")
-	_, err = conn.Exec(ctx, db.InitSchema)
+	_, err = pool.Exec(ctx, db.InitSchema)
 	if err != nil {
 		log.Fatalf("initialize database schema: %s", err)
 	}
