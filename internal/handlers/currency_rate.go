@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/lyro41/plata-go-assignment/internal/api"
 	"github.com/lyro41/plata-go-assignment/internal/db"
 	"github.com/shopspring/decimal"
@@ -28,11 +30,23 @@ func NewCurrencyRateHandler(db *db.Queries, timeout time.Duration) *CurrencyRate
 	}
 }
 
+func (c *CurrencyRateHandler) getCurrencyRate(ctx context.Context, id, pair string) (db.CurrencyRate, error) {
+	if id != "" {
+		parsedID, err := uuid.Parse(id)
+		if err != nil {
+			return db.CurrencyRate{}, err
+		}
+		return c.DB.GetCurrencyRateByID(ctx, parsedID)
+	}
+	return c.DB.GetCurrencyRate(ctx, db.GetCurrencyRateParams{Status: api.StatusFetched, Pair: pair})
+}
+
+func writeCurrencyRateError(w http.ResponseWriter, r *http.Request, status int, resp *api.CurrencyRateResponse) {
+	render.Status(r, status)
+	render.JSON(w, r, resp.ErrorResponse)
+}
+
 func (c *CurrencyRateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var (
-		row db.CurrencyRate
-		err error
-	)
 	id := r.URL.Query().Get("id")
 	pair := strings.ToUpper(chi.URLParam(r, "*"))
 	resp := api.CurrencyRateResponse{ErrorResponse: api.ErrorResponse{ID: id, Pair: pair}}
@@ -41,35 +55,34 @@ func (c *CurrencyRateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		if !handlePair(w, r, &resp.ErrorResponse, logger) {
 			return
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), c.Timeout)
-		defer cancel()
-		row, err = c.DB.GetCurrencyRate(ctx, db.GetCurrencyRateParams{Status: api.StatusFetched, Pair: pair})
-		if err != nil {
-			resp.Error = fmt.Sprintf("failed to get latest currency rate from database: %s", err)
-			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, resp.ErrorResponse)
-			logger.Error(resp.Error)
-			return
-		}
 	} else {
-		id, err := uuid.Parse(id)
-		if err != nil {
+		if _, err := uuid.Parse(id); err != nil {
 			resp.Error = fmt.Sprintf("invalid id: %s", err)
-			render.Status(r, http.StatusBadRequest)
-			render.JSON(w, r, resp.ErrorResponse)
+			writeCurrencyRateError(w, r, http.StatusBadRequest, &resp)
 			logger.Warn(resp.Error)
 			return
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), c.Timeout)
-		defer cancel()
-		row, err = c.DB.GetCurrencyRateByID(ctx, id)
-		if err != nil {
-			resp.Error = fmt.Sprintf("failed to get currency rate by id from database: %s", err)
-			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, resp.ErrorResponse)
-			logger.Error(resp.Error)
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), c.Timeout)
+	defer cancel()
+	row, err := c.getCurrencyRate(ctx, id, pair)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			resp.Error = "currency rate has not been fetched yet"
+			if id != "" {
+				resp.Error = "currency rate request not found"
+			}
+			writeCurrencyRateError(w, r, http.StatusNotFound, &resp)
+			logger.Info(resp.Error)
 			return
 		}
+		resp.Error = fmt.Sprintf("failed to get currency rate from database: %s", err)
+		writeCurrencyRateError(w, r, http.StatusInternalServerError, &resp)
+		logger.Error(resp.Error)
+		return
+	}
+	if id != "" {
 		resp.Pair = row.Pair
 	}
 	render.Status(r, http.StatusOK)

@@ -159,6 +159,21 @@ func TestCurrencyRateHandler(t *testing.T) {
 			t.Fatalf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
 		}
 	})
+
+	t.Run("rate is not found", func(t *testing.T) {
+		handler := NewCurrencyRateHandler(db.New(noRowsDBTX{}), time.Second)
+		req := httptest.NewRequest(http.MethodGet, "/currency-rate/USD/RUB", nil)
+		routeCtx := chi.NewRouteContext()
+		routeCtx.URLParams.Add("*", "USD/RUB")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
+		recorder := httptest.NewRecorder()
+
+		handler.ServeHTTP(recorder, req)
+
+		if recorder.Code != http.StatusNotFound {
+			t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
+		}
+	})
 }
 
 type fakeDBTX struct{}
@@ -199,6 +214,18 @@ func (d *idempotencyDBTX) QueryRow(_ context.Context, query string, _ ...any) pg
 }
 
 type currencyRateDBTX struct{}
+
+type noRowsDBTX struct{}
+
+func (noRowsDBTX) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
+	return pgconn.NewCommandTag("SELECT 1"), nil
+}
+
+func (noRowsDBTX) Query(context.Context, string, ...any) (pgx.Rows, error) { return nil, nil }
+
+func (noRowsDBTX) QueryRow(context.Context, string, ...any) pgx.Row {
+	return errorRow{err: pgx.ErrNoRows}
+}
 
 func (currencyRateDBTX) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
 	return pgconn.NewCommandTag("SELECT 1"), nil

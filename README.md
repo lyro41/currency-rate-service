@@ -77,6 +77,10 @@ docker compose down
 
 Данные PostgreSQL сохраняются в Docker volume `postgres-data`.
 
+## OpenAPI / Swagger
+
+Спецификация API находится в файле [openapi.yaml](openapi.yaml). Её можно открыть в [Swagger Editor](https://editor.swagger.io/) или импортировать в Swagger UI/Postman.
+
 Если `CONFIG_PATH` не задан, конфигурация читается через `cleanenv` из переменных окружения и получает значения по умолчанию из тегов `env-default`. Поэтому сервис можно запустить без YAML-файла:
 
 ```bash
@@ -152,7 +156,7 @@ curl http://localhost:8080/currency-rate/USD/RUB
 
 ### Ошибки
 
-Ошибки возвращаются в JSON с полями `error` и `pair`. Некорректный формат пары или UUID возвращает `400 Bad Request`, неподдерживаемая валюта — `422 Unprocessable Entity`, ошибки PostgreSQL — `500 Internal Server Error`.
+Ошибки возвращаются в JSON с полями `error` и `pair`. Некорректный формат пары или UUID возвращает `400 Bad Request`, неподдерживаемая валюта — `422 Unprocessable Entity`, отсутствующая котировка или операция — `404 Not Found`, ошибки PostgreSQL — `500 Internal Server Error`.
 
 ## Структура проекта
 
