@@ -64,20 +64,28 @@ func TestHandlePair(t *testing.T) {
 	}
 }
 
-func TestUpdateHandlerNormalizesPair(t *testing.T) {
-	queue := make(chan api.Request, 1)
-	handler := NewUpdateHandler(db.New(fakeDBTX{}), queue, time.Second)
-	req := httptest.NewRequest(http.MethodPost, "/update/usd/rub", nil)
+func test(t *testing.T, handler http.Handler, req *http.Request, pair string, status int) *httptest.ResponseRecorder {
+	t.Helper()
+
 	routeCtx := chi.NewRouteContext()
-	routeCtx.URLParams.Add("*", "usd/rub")
+	routeCtx.URLParams.Add("*", pair)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
 	recorder := httptest.NewRecorder()
 
 	handler.ServeHTTP(recorder, req)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	if recorder.Code != status {
+		t.Fatalf("status = %d, want %d", recorder.Code, status)
 	}
+	return recorder
+}
+
+func TestUpdateHandlerNormalizesPair(t *testing.T) {
+	queue := make(chan api.Request, 1)
+	handler := NewUpdateHandler(db.New(fakeDBTX{}), queue, time.Second)
+	req := httptest.NewRequest(http.MethodPost, "/update/usd/rub", nil)
+	recorder := test(t, handler, req, "usd/rub", http.StatusAccepted)
+
 	var response api.ErrorResponse
 	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("decode response: %v", err)
@@ -88,6 +96,28 @@ func TestUpdateHandlerNormalizesPair(t *testing.T) {
 	request := <-queue
 	if request.Pair != "USD/RUB" {
 		t.Fatalf("queued pair = %q, want USD/RUB", request.Pair)
+	}
+}
+
+func TestUpdateHandlerReturnsServiceUnavailableWhenQueueIsFull(t *testing.T) {
+	handler := NewUpdateHandler(db.New(fakeDBTX{}), make(chan api.Request), time.Second)
+	req := httptest.NewRequest(http.MethodPost, "/update/USD/RUB", nil)
+	_ = test(t, handler, req, "USD/RUB", http.StatusServiceUnavailable)
+}
+
+func TestUpdateHandlerRejectsLongIdempotencyKey(t *testing.T) {
+	handler := NewUpdateHandler(db.New(fakeDBTX{}), make(chan api.Request, 1), time.Second)
+	req := httptest.NewRequest(http.MethodPost, "/update/USD/RUB", nil)
+	routeCtx := chi.NewRouteContext()
+	routeCtx.URLParams.Add("*", "USD/RUB")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
+	req.Header.Set("Idempotency-Key", strings.Repeat("x", maxIdempotencyKeyLength+1))
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
 	}
 }
 
@@ -106,8 +136,8 @@ func TestUpdateHandlerIdempotency(t *testing.T) {
 
 		handler.ServeHTTP(recorder, req)
 
-		if recorder.Code != http.StatusOK {
-			t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+		if recorder.Code != http.StatusAccepted {
+			t.Fatalf("status = %d, want %d", recorder.Code, http.StatusAccepted)
 		}
 		var response api.ErrorResponse
 		if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
@@ -129,16 +159,8 @@ func TestCurrencyRateHandler(t *testing.T) {
 	t.Run("by pair", func(t *testing.T) {
 		handler := NewCurrencyRateHandler(db.New(currencyRateDBTX{}), time.Second)
 		req := httptest.NewRequest(http.MethodGet, "/currency-rate/usd/rub", nil)
-		routeCtx := chi.NewRouteContext()
-		routeCtx.URLParams.Add("*", "usd/rub")
-		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
-		recorder := httptest.NewRecorder()
+		recorder := test(t, handler, req, "usd/rub", http.StatusOK)
 
-		handler.ServeHTTP(recorder, req)
-
-		if recorder.Code != http.StatusOK {
-			t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
-		}
 		var response api.CurrencyRateResponse
 		if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
 			t.Fatalf("decode response: %v", err)
@@ -163,16 +185,7 @@ func TestCurrencyRateHandler(t *testing.T) {
 	t.Run("rate is not found", func(t *testing.T) {
 		handler := NewCurrencyRateHandler(db.New(noRowsDBTX{}), time.Second)
 		req := httptest.NewRequest(http.MethodGet, "/currency-rate/USD/RUB", nil)
-		routeCtx := chi.NewRouteContext()
-		routeCtx.URLParams.Add("*", "USD/RUB")
-		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
-		recorder := httptest.NewRecorder()
-
-		handler.ServeHTTP(recorder, req)
-
-		if recorder.Code != http.StatusNotFound {
-			t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
-		}
+		_ = test(t, handler, req, "USD/RUB", http.StatusNotFound)
 	})
 }
 

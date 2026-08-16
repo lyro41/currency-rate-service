@@ -3,10 +3,24 @@ package config
 import (
 	"fmt"
 	"log"
+	"net"
+	"net/url"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
+)
+
+type config interface {
+	Validate() error
+}
+
+var (
+	_ = config(Storage{})
+	_ = config(Provider{})
+	_ = config(HTTPServer{})
+	_ = config(Worker{})
 )
 
 type Config struct {
@@ -14,6 +28,26 @@ type Config struct {
 	Storage    `yaml:"storage"`
 	Provider   `yaml:"provider"`
 	HTTPServer `yaml:"http_server"`
+	Worker     `yaml:"worker"`
+}
+
+func (cfg *Config) Validate() error {
+	if cfg.Env != "development" && cfg.Env != "production" {
+		return fmt.Errorf("env must be development or production")
+	}
+	if err := cfg.Storage.Validate(); err != nil {
+		return fmt.Errorf("validate storage: %w", err)
+	}
+	if err := cfg.Provider.Validate(); err != nil {
+		return fmt.Errorf("validate provider: %w", err)
+	}
+	if err := cfg.HTTPServer.Validate(); err != nil {
+		return fmt.Errorf("validate http_server: %w", err)
+	}
+	if err := cfg.Worker.Validate(); err != nil {
+		return fmt.Errorf("validate worker: %w", err)
+	}
+	return nil
 }
 
 type Storage struct {
@@ -25,13 +59,25 @@ type Storage struct {
 	Timeout  time.Duration `yaml:"timeout" env-default:"5s"`
 }
 
+func (s Storage) Validate() error {
+	return nil
+}
+
 func (s Storage) String() string {
-	// postgres://jack:secret@foo.example.com:5432,bar.example.com:5432/mydb
-	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s", s.User, s.Password, s.Host, s.Port, s.Database)
+	return (&url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(s.User, s.Password),
+		Host:   net.JoinHostPort(s.Host, strconv.Itoa(s.Port)),
+		Path:   "/" + s.Database,
+	}).String()
 }
 
 type Provider struct {
 	Timeout time.Duration `yaml:"timeout" env-default:"5s"`
+}
+
+func (cfg Provider) Validate() error {
+	return nil
 }
 
 type HTTPServer struct {
@@ -39,6 +85,21 @@ type HTTPServer struct {
 	ReadTimeout  time.Duration `yaml:"read_timeout" env-default:"5s"`
 	WriteTimeout time.Duration `yaml:"write_timeout" env-default:"10s"`
 	IdleTimeout  time.Duration `yaml:"idle_timeout" env-default:"60s"`
+}
+
+func (cfg HTTPServer) Validate() error {
+	return nil
+}
+
+type Worker struct {
+	BufferSize int `yaml:"buffer_size" env-default:"100"`
+}
+
+func (cfg Worker) Validate() error {
+	if cfg.BufferSize <= 0 {
+		return fmt.Errorf("buffer_size must be greater than 0")
+	}
+	return nil
 }
 
 var cfgPathEnv = "CONFIG_PATH"

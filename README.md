@@ -37,6 +37,8 @@ http_server:
   read_timeout: 5s
   write_timeout: 10s
   idle_timeout: 60s
+worker:
+  buffer_size: 100
 ```
 
 Если `CONFIG_PATH` задан, указанный файл должен существовать и содержать корректный YAML-конфиг.
@@ -110,6 +112,7 @@ curl -X POST http://localhost:8080/update/USD/RUB
 ```
 
 Операция сначала получает статус `pending`, а затем обрабатывается worker’ом.
+Очередь имеет ограниченный размер; при её переполнении сервис возвращает `503 Service Unavailable`.
 
 ### Идемпотентное обновление
 
@@ -156,7 +159,14 @@ curl http://localhost:8080/currency-rate/USD/RUB
 
 ### Ошибки
 
-Ошибки возвращаются в JSON с полями `error` и `pair`. Некорректный формат пары или UUID возвращает `400 Bad Request`, неподдерживаемая валюта — `422 Unprocessable Entity`, отсутствующая котировка или операция — `404 Not Found`, ошибки PostgreSQL — `500 Internal Server Error`.
+Ошибки возвращаются в JSON с полями `error` и `pair`. 
+
+Коды ошибок:
+- `400 Bad Request`: некорректный формат пары или UUID возвращает,
+- `404 Not Found`: отсутствующая котировка или операция,
+- `422 Unprocessable Entity`: неподдерживаемая валюта, 
+- `500 Internal Server Error`: ошибки PostgreSQL,
+- `503 Service Unavailable`: переполненная очередь. 
 
 ## Структура проекта
 

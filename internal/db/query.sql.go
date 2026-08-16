@@ -13,44 +13,44 @@ import (
 	"github.com/lyro41/plata-go-assignment/internal/api"
 )
 
-const createUpdateRequest = `-- name: CreateUpdateRequest :one
-INSERT INTO currency_rates (id, pair, status)
-VALUES ($1, $2, $3)
-RETURNING id, pair
-`
-
 const createIdempotentUpdateRequest = `-- name: CreateIdempotentUpdateRequest :one
 INSERT INTO currency_rates (id, pair, status, idempotency_key)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (pair, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
-RETURNING id, pair
+RETURNING id, pair, status, rate, update_time, idempotency_key
 `
 
 type CreateIdempotentUpdateRequestParams struct {
 	ID             uuid.UUID      `json:"id"`
 	Pair           string         `json:"pair"`
 	Status         api.RateStatus `json:"status"`
-	IdempotencyKey string         `json:"idempotency_key"`
+	IdempotencyKey pgtype.Text    `json:"idempotency_key"`
 }
 
-func (q *Queries) CreateIdempotentUpdateRequest(ctx context.Context, arg CreateIdempotentUpdateRequestParams) (CreateUpdateRequestRow, error) {
-	row := q.db.QueryRow(ctx, createIdempotentUpdateRequest, arg.ID, arg.Pair, arg.Status, arg.IdempotencyKey)
-	var i CreateUpdateRequestRow
-	err := row.Scan(&i.ID, &i.Pair)
+func (q *Queries) CreateIdempotentUpdateRequest(ctx context.Context, arg CreateIdempotentUpdateRequestParams) (CurrencyRate, error) {
+	row := q.db.QueryRow(ctx, createIdempotentUpdateRequest,
+		arg.ID,
+		arg.Pair,
+		arg.Status,
+		arg.IdempotencyKey,
+	)
+	var i CurrencyRate
+	err := row.Scan(
+		&i.ID,
+		&i.Pair,
+		&i.Status,
+		&i.Rate,
+		&i.UpdateTime,
+		&i.IdempotencyKey,
+	)
 	return i, err
 }
 
-const getUpdateRequestByIdempotencyKey = `-- name: GetUpdateRequestByIdempotencyKey :one
-SELECT id, pair FROM currency_rates
-WHERE pair = $1 AND idempotency_key = $2
+const createUpdateRequest = `-- name: CreateUpdateRequest :one
+INSERT INTO currency_rates (id, pair, status)
+VALUES ($1, $2, $3)
+RETURNING id, pair, status, rate, update_time, idempotency_key
 `
-
-func (q *Queries) GetUpdateRequestByIdempotencyKey(ctx context.Context, pair string, idempotencyKey string) (CreateUpdateRequestRow, error) {
-	row := q.db.QueryRow(ctx, getUpdateRequestByIdempotencyKey, pair, idempotencyKey)
-	var i CreateUpdateRequestRow
-	err := row.Scan(&i.ID, &i.Pair)
-	return i, err
-}
 
 type CreateUpdateRequestParams struct {
 	ID     uuid.UUID      `json:"id"`
@@ -58,20 +58,32 @@ type CreateUpdateRequestParams struct {
 	Status api.RateStatus `json:"status"`
 }
 
-type CreateUpdateRequestRow struct {
-	ID   uuid.UUID `json:"id"`
-	Pair string    `json:"pair"`
-}
-
-func (q *Queries) CreateUpdateRequest(ctx context.Context, arg CreateUpdateRequestParams) (CreateUpdateRequestRow, error) {
+func (q *Queries) CreateUpdateRequest(ctx context.Context, arg CreateUpdateRequestParams) (CurrencyRate, error) {
 	row := q.db.QueryRow(ctx, createUpdateRequest, arg.ID, arg.Pair, arg.Status)
-	var i CreateUpdateRequestRow
-	err := row.Scan(&i.ID, &i.Pair)
+	var i CurrencyRate
+	err := row.Scan(
+		&i.ID,
+		&i.Pair,
+		&i.Status,
+		&i.Rate,
+		&i.UpdateTime,
+		&i.IdempotencyKey,
+	)
 	return i, err
 }
 
+const deletePendingUpdateRequest = `-- name: DeletePendingUpdateRequest :exec
+DELETE FROM currency_rates
+WHERE id = $1 AND status = 'pending'
+`
+
+func (q *Queries) DeletePendingUpdateRequest(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deletePendingUpdateRequest, id)
+	return err
+}
+
 const getCurrencyRate = `-- name: GetCurrencyRate :one
-SELECT id, pair, status, rate, update_time FROM currency_rates
+SELECT id, pair, status, rate, update_time, idempotency_key FROM currency_rates
 WHERE status = $1 AND pair = $2
 ORDER BY update_time DESC
 LIMIT 1
@@ -91,12 +103,13 @@ func (q *Queries) GetCurrencyRate(ctx context.Context, arg GetCurrencyRateParams
 		&i.Status,
 		&i.Rate,
 		&i.UpdateTime,
+		&i.IdempotencyKey,
 	)
 	return i, err
 }
 
 const getCurrencyRateByID = `-- name: GetCurrencyRateByID :one
-SELECT id, pair, status, rate, update_time FROM currency_rates
+SELECT id, pair, status, rate, update_time, idempotency_key FROM currency_rates
 WHERE id = $1
 `
 
@@ -109,6 +122,31 @@ func (q *Queries) GetCurrencyRateByID(ctx context.Context, id uuid.UUID) (Curren
 		&i.Status,
 		&i.Rate,
 		&i.UpdateTime,
+		&i.IdempotencyKey,
+	)
+	return i, err
+}
+
+const getUpdateRequestByIdempotencyKey = `-- name: GetUpdateRequestByIdempotencyKey :one
+SELECT id, pair, status, rate, update_time, idempotency_key FROM currency_rates
+WHERE pair = $1 AND idempotency_key = $2
+`
+
+type GetUpdateRequestByIdempotencyKeyParams struct {
+	Pair           string      `json:"pair"`
+	IdempotencyKey pgtype.Text `json:"idempotency_key"`
+}
+
+func (q *Queries) GetUpdateRequestByIdempotencyKey(ctx context.Context, arg GetUpdateRequestByIdempotencyKeyParams) (CurrencyRate, error) {
+	row := q.db.QueryRow(ctx, getUpdateRequestByIdempotencyKey, arg.Pair, arg.IdempotencyKey)
+	var i CurrencyRate
+	err := row.Scan(
+		&i.ID,
+		&i.Pair,
+		&i.Status,
+		&i.Rate,
+		&i.UpdateTime,
+		&i.IdempotencyKey,
 	)
 	return i, err
 }

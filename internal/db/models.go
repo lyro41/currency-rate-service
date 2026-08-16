@@ -11,9 +11,10 @@ import (
 )
 
 type CurrencyRate struct {
-	ID         uuid.UUID        `json:"id"`
-	Pair       string           `json:"pair"`
-	Status     api.RateStatus   `json:"status"`
-	Rate       pgtype.Numeric   `json:"rate"`
-	UpdateTime pgtype.Timestamp `json:"update_time"`
+	ID             uuid.UUID        `json:"id"`
+	Pair           string           `json:"pair"`
+	Status         api.RateStatus   `json:"status"`
+	Rate           pgtype.Numeric   `json:"rate"`
+	UpdateTime     pgtype.Timestamp `json:"update_time"`
+	IdempotencyKey pgtype.Text      `json:"idempotency_key"`
 }

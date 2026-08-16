@@ -32,3 +32,8 @@ func handlePair(w http.ResponseWriter, r *http.Request, resp *api.ErrorResponse,
 	}
 	return true
 }
+
+func writeError(w http.ResponseWriter, r *http.Request, status int, resp *api.ErrorResponse) {
+	render.Status(r, status)
+	render.JSON(w, r, resp)
+}

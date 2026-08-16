@@ -18,7 +18,10 @@ func Do(ctx context.Context, client *http.Client, q *db.Queries, requests chan a
 		select {
 		case <-ctx.Done():
 			return
-		case req := <-requests:
+		case req, ok := <-requests:
+			if !ok {
+				return
+			}
 			logger := slog.With(slog.String("id", req.UUID.String()), slog.String("pair", req.Pair))
 
 			logger.Info("fetching currency rate")

@@ -27,6 +27,10 @@ func GetCurrencyRate(client *http.Client, pair string) (api.RateStatus, decimal.
 		return api.StatusFailed, decimal.Decimal{}
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		logger.Error("get currency rate", slog.Any("resp", resp))
+		return api.StatusFailed, decimal.Decimal{}
+	}
 	logger = logger.With(slog.Any("resp", resp))
 
 	body, err := io.ReadAll(resp.Body)
@@ -40,6 +44,10 @@ func GetCurrencyRate(client *http.Client, pair string) (api.RateStatus, decimal.
 	err = json.Unmarshal(body, rate)
 	if err != nil {
 		logger.Error("unmarshal currency rate", slog.Any("error", err))
+		return api.StatusFailed, decimal.Decimal{}
+	}
+	if rate.Rate.IsZero() {
+		logger.Error("currency rate is zero")
 		return api.StatusFailed, decimal.Decimal{}
 	}
 	return api.StatusFetched, rate.Rate

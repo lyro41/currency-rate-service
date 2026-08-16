@@ -19,6 +19,10 @@ import (
 
 func main() {
 	cfg := config.MustLoad()
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("invalid config: %s", err)
+	}
+
 	ctx := context.Background()
 
 	slog.Info("initializing database connection")
@@ -37,7 +41,7 @@ func main() {
 
 	slog.Info("initializing worker")
 	client := &http.Client{Timeout: cfg.Provider.Timeout}
-	queue := make(chan api.Request)
+	queue := make(chan api.Request, cfg.Worker.BufferSize)
 	go worker.Do(ctx, client, database, queue, cfg.Storage.Timeout)
 
 	slog.Info("initializing server")
