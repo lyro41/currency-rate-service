@@ -23,7 +23,7 @@ type Request struct {
 
 type ErrorResponse struct {
 	Error string `json:"error,omitempty"`
-	Pair  string `json:"pair"`
+	Pair  string `json:"pair,omitempty"`
 	ID    string `json:"id,omitempty"`
 }
 

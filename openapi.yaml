@@ -1,0 +1,222 @@
+openapi: 3.0.3
+info:
+  title: Currency Rate Service API
+  description: API для асинхронного обновления и получения курсов валют.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: currency-rates
+    description: Операции с курсами валют
+
+paths:
+  /update/{pair}:
+    post:
+      tags: [currency-rates]
+      summary: Запустить обновление котировки
+      description: Создаёт асинхронную операцию обновления курса.
+      parameters:
+        - $ref: '#/components/parameters/Pair'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Операция создана или уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestPair'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /currency-rate/{pair}:
+    get:
+      tags: [currency-rates]
+      summary: Получить последний успешный курс
+      parameters:
+        - $ref: '#/components/parameters/Pair'
+      responses:
+        '200':
+          description: Последняя успешно полученная котировка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyRateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestPair'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /currency-rate:
+    get:
+      tags: [currency-rates]
+      summary: Получить курс по идентификатору операции
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: Результат операции
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyRateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestID'
+        '404':
+          $ref: '#/components/responses/NotFoundID'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  parameters:
+    ID:
+      name: id
+      in: query
+      required: true
+      description: UUID операции обновления
+      schema:
+        type: string
+        format: uuid
+        example: 7470cbbb-14b8-47f9-b323-cc444ba1b75b
+    Pair:
+      name: pair
+      in: path
+      required: true
+      description: Валютная пара. Поддерживаются USD, EUR, MXN, RUB, JPY и AMD. Регистр не важен.
+      schema:
+        type: string
+        pattern: '^[A-Za-z]+/[A-Za-z]+$'
+        example: USD/EUR
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Повторный запрос с теми же ключом и парой возвращает тот же идентификатор операции.
+      schema:
+        type: string
+        maxLength: 255
+
+  schemas:
+    UpdateResponse:
+      type: object
+      required: [pair, id]
+      properties:
+        pair:
+          type: string
+          example: USD/EUR
+        id:
+          type: string
+          format: uuid
+
+    CurrencyRateResponse:
+      type: object
+      required: [pair, time]
+      properties:
+        pair:
+          type: string
+          pattern: '^[A-Za-z]+/[A-Za-z]+$'
+          example: USD/EUR
+        id:
+          type: string
+          format: uuid
+          example: '7470cbbb-14b8-47f9-b323-cc444ba1b75b'
+        rate:
+          type: string
+          example: '0.86561'
+        time:
+          type: string
+          format: date-time
+          example: '2026-08-16T01:14:53.243339Z'
+        status:
+          type: string
+          enum: [pending, fetched, failed]
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        pair:
+          type: string
+          example: USD/EUR
+        id:
+          type: string
+          example: '7470cbbb-14b8-47f9-b323-cc444ba1b75b'
+
+  responses:
+    BadRequestPair:
+      description: Некорректный формат пары
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "'pair' parameter must be in 'ABC/XYZ' format"
+            pair: USDEUR
+    BadRequestID:
+      description: Некорректный UUID операции
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "invalid id: invalid UUID length: 14"
+            pair: ""
+            id: "some-wrong-id!"
+    UnprocessableEntity:
+      description: Валюта не поддерживается
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "currency GBP is not supported"
+            pair: GBP/RUB
+    NotFound:
+      description: Котировка ещё не получена или операция не найдена
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "currency rate has not been fetched yet"
+            pair: USD/RUB
+    NotFoundID:
+      description: Котировка ещё не получена или операция не найдена
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "currency rate request not found"
+            id: "7470cbbb-14b8-47f9-b323-cc444ba1b75c"
+    InternalServerError:
+      description: Внутренняя ошибка сервиса или базы данных
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "failed to get currency rate from database: FATAL: terminating connection due to administrator command (SQLSTATE 57P01)"
+            pair: USD/RUB
+    ServiceUnavailable:
+      description: Очередь фоновых операций переполнена
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "request queue is full"
+            pair: USD/RUB
