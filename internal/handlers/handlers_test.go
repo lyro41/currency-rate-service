@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/lyro41/currency-rate-service/internal/api"
 	"github.com/lyro41/currency-rate-service/internal/db"
 )

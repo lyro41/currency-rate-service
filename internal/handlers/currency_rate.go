@@ -13,9 +13,10 @@ import (
 	"github.com/go-chi/render"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/shopspring/decimal"
+
 	"github.com/lyro41/currency-rate-service/internal/api"
 	"github.com/lyro41/currency-rate-service/internal/db"
-	"github.com/shopspring/decimal"
 )
 
 type CurrencyRateHandler struct {

@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -13,7 +12,7 @@ import (
 	"github.com/lyro41/currency-rate-service/internal/provider"
 )
 
-func Do(ctx context.Context, client *http.Client, q *db.Queries, requests chan api.Request, timeout time.Duration) {
+func Do(ctx context.Context, p *provider.Provider, q *db.Queries, requests chan api.Request, timeout time.Duration) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -25,7 +24,7 @@ func Do(ctx context.Context, client *http.Client, q *db.Queries, requests chan a
 			logger := slog.With(slog.String("id", req.UUID.String()), slog.String("pair", req.Pair))
 
 			logger.Info("fetching currency rate")
-			status, rate := provider.GetCurrencyRate(client, req.Pair)
+			status, rate := p.GetCurrencyRate(ctx, req.Pair)
 
 			ctx0, cancel := context.WithTimeout(ctx, timeout)
 			updateTime := time.Now()

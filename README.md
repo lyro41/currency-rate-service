@@ -32,6 +32,8 @@ storage:
   timeout: 5s
 provider:
   timeout: 5s
+  max_attempts: 3
+  initial_backoff: 200ms
 http_server:
   address: ":8080"
   read_timeout: 5s

@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"github.com/go-chi/render"
+
 	"github.com/lyro41/currency-rate-service/internal/api"
 )
 

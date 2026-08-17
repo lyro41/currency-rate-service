@@ -60,6 +60,9 @@ type Storage struct {
 }
 
 func (s Storage) Validate() error {
+	if s.Timeout <= 0 {
+		return fmt.Errorf("timeout must be positive, have: %s", s.Timeout)
+	}
 	return nil
 }
 
@@ -73,10 +76,21 @@ func (s Storage) String() string {
 }
 
 type Provider struct {
-	Timeout time.Duration `yaml:"timeout" env-default:"5s"`
+	Timeout        time.Duration `yaml:"timeout" env-default:"5s"`
+	MaxAttempts    int           `yaml:"max_attempts" env-default:"3"`
+	InitialBackoff time.Duration `yaml:"initial_backoff" env-default:"200ms"`
 }
 
 func (cfg Provider) Validate() error {
+	if cfg.Timeout <= 0 {
+		return fmt.Errorf("timeout must be positive, have: %s", cfg.Timeout)
+	}
+	if cfg.MaxAttempts <= 0 {
+		return fmt.Errorf("max_attempts must be positive, have: %d", cfg.MaxAttempts)
+	}
+	if cfg.InitialBackoff < 0 {
+		return fmt.Errorf("initial_backoff must not be negative, have: %s", cfg.InitialBackoff)
+	}
 	return nil
 }
 
@@ -88,6 +102,15 @@ type HTTPServer struct {
 }
 
 func (cfg HTTPServer) Validate() error {
+	if cfg.ReadTimeout <= 0 {
+		return fmt.Errorf("read_timeout must be positive, have: %s", cfg.ReadTimeout)
+	}
+	if cfg.WriteTimeout <= 0 {
+		return fmt.Errorf("write_timeout must be positive, have: %s", cfg.WriteTimeout)
+	}
+	if cfg.IdleTimeout <= 0 {
+		return fmt.Errorf("idle_timeout must be positive, have: %s", cfg.IdleTimeout)
+	}
 	return nil
 }
 

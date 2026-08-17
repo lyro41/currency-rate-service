@@ -1,11 +1,13 @@
 package provider
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -24,7 +26,7 @@ func TestGetCurrencyRate(t *testing.T) {
 			}
 			return response(`{"date":"2026-08-15","base":"USD","quote":"RUB","rate":92.1234}`), nil
 		})}
-		status, rate := GetCurrencyRate(client, "USD/RUB")
+		status, rate := (&Provider{Client: client, MaxAttempts: 1}).GetCurrencyRate(context.Background(), "USD/RUB")
 		if status != "fetched" {
 			t.Fatalf("status = %q, want fetched", status)
 		}
@@ -37,7 +39,7 @@ func TestGetCurrencyRate(t *testing.T) {
 		client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 			return nil, errors.New("connection refused")
 		})}
-		status, rate := GetCurrencyRate(client, "USD/RUB")
+		status, rate := (&Provider{Client: client, MaxAttempts: 1}).GetCurrencyRate(context.Background(), "USD/RUB")
 		if status != "failed" {
 			t.Fatalf("status = %q, want failed", status)
 		}
@@ -50,7 +52,7 @@ func TestGetCurrencyRate(t *testing.T) {
 		client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 			return response("not-json"), nil
 		})}
-		status, rate := GetCurrencyRate(client, "USD/RUB")
+		status, rate := (&Provider{Client: client, MaxAttempts: 1}).GetCurrencyRate(context.Background(), "USD/RUB")
 		if status != "failed" {
 			t.Fatalf("status = %q, want failed", status)
 		}
@@ -58,6 +60,28 @@ func TestGetCurrencyRate(t *testing.T) {
 			t.Fatalf("rate = %s, want zero", rate)
 		}
 	})
+}
+
+func TestGetCurrencyRateRetriesTransientFailure(t *testing.T) {
+	attempts := 0
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		attempts++
+		if attempts < 3 {
+			return nil, errors.New("connection refused")
+		}
+		return response(`{"rate":92.1234}`), nil
+	})}
+
+	status, rate := (&Provider{Client: client, MaxAttempts: 3, InitialBackoff: 1 * time.Millisecond}).GetCurrencyRate(context.Background(), "USD/RUB")
+	if status != "fetched" {
+		t.Fatalf("status = %q, want fetched", status)
+	}
+	if !rate.Equal(decimal.RequireFromString("92.1234")) {
+		t.Fatalf("rate = %s, want 92.1234", rate)
+	}
+	if attempts != 3 {
+		t.Fatalf("attempts = %d, want 3", attempts)
+	}
 }
 
 func response(body string) *http.Response {

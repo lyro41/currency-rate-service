@@ -19,6 +19,7 @@ import (
 	"github.com/lyro41/currency-rate-service/internal/config"
 	"github.com/lyro41/currency-rate-service/internal/db"
 	"github.com/lyro41/currency-rate-service/internal/handlers"
+	"github.com/lyro41/currency-rate-service/internal/provider"
 	"github.com/lyro41/currency-rate-service/internal/worker"
 )
 
@@ -46,12 +47,16 @@ func main() {
 	}
 
 	slog.Info("initializing worker")
-	client := &http.Client{Timeout: cfg.Provider.Timeout}
+	providerClient := &provider.Provider{
+		Client:         &http.Client{Timeout: cfg.Provider.Timeout},
+		MaxAttempts:    cfg.Provider.MaxAttempts,
+		InitialBackoff: cfg.Provider.InitialBackoff,
+	}
 	queue := make(chan api.Request, cfg.Worker.BufferSize)
 	workerDone := make(chan struct{})
 	go func() {
 		defer close(workerDone)
-		worker.Do(ctx, client, database, queue, cfg.Storage.Timeout)
+		worker.Do(ctx, providerClient, database, queue, cfg.Storage.Timeout)
 	}()
 
 	slog.Info("initializing server")

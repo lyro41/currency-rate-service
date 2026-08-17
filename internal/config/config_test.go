@@ -83,7 +83,12 @@ func TestWorkerValidate(t *testing.T) {
 
 func TestConfigValidate(t *testing.T) {
 	cfg := Config{
-		Env:    "development",
+		Env:      "development",
+		Storage:  Storage{Timeout: time.Second},
+		Provider: Provider{Timeout: time.Second, MaxAttempts: 1},
+		HTTPServer: HTTPServer{
+			ReadTimeout: time.Second, WriteTimeout: time.Second, IdleTimeout: time.Second,
+		},
 		Worker: Worker{BufferSize: 100},
 	}
 	if err := cfg.Validate(); err != nil {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/lyro41/currency-rate-service/internal/api"
 	"github.com/lyro41/currency-rate-service/internal/db"
+	"github.com/lyro41/currency-rate-service/internal/provider"
 )
 
 type workerTransport struct{ body string }
@@ -61,7 +62,7 @@ func TestDo(t *testing.T) {
 			requests := make(chan api.Request, 1)
 			client := &http.Client{Transport: workerTransport{body: tt.body}}
 
-			go Do(ctx, client, queries, requests, time.Second)
+			go Do(ctx, &provider.Provider{Client: client, MaxAttempts: 1}, queries, requests, time.Second)
 			requests <- api.Request{UUID: uuid.New(), Pair: "USD/RUB"}
 			select {
 			case status := <-updated:
