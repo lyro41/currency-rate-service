@@ -194,7 +194,7 @@ components:
             error: "currency rate has not been fetched yet"
             pair: USD/RUB
     NotFoundID:
-      description: Котировка ещё не получена или операция не найдена
+      description: Операция с указанным идентификатором не найдена
       content:
         application/json:
           schema:
